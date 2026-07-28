@@ -1,0 +1,12 @@
+# Virtual environment
+venv/
+
+# Secrets
+.env
+
+# Mac junk files
+.DS_Store
+
+# Python cache
+__pycache__/
+*.pyc
