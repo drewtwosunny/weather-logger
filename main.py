@@ -1,14 +1,19 @@
 import os
 import csv
+import logging
 import requests
 from datetime import datetime
 from dotenv import load_dotenv
 
-# Load variables from .env into the environment
 load_dotenv()
-
-# Retrieve the API key we just loaded
 api_key = os.getenv("OPENWEATHER_API_KEY")
+
+logging.basicConfig(
+    filename="weather_log.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
 
 def save_to_csv(city, temperature, humidity, description, wind_speed, filename="data/weather_log.csv"):
     file_exists = os.path.isfile(filename)
@@ -22,28 +27,37 @@ def save_to_csv(city, temperature, humidity, description, wind_speed, filename="
         writer.writerow([datetime.now(), city, temperature, humidity, description, wind_speed])
 
 
-# The endpoint we're calling
 url = "https://api.openweathermap.org/data/2.5/weather"
 
-# Query parameters — requests will build the full URL from this dict
-params = {
-    "q": "Chicago",
-    "appid": api_key,
-    "units": "imperial"
-}
+cities = [
+    "Chicago", "New York", "Los Angeles", "Houston", "Phoenix",
+    "Philadelphia", "San Antonio", "Tulsa", "Dallas", "Miami"
+]
 
-response = requests.get(url, params=params)
+for city in cities:
+    params = {
+        "q": city,
+        "appid": api_key,
+        "units": "imperial"
+    }
 
-# Convert the JSON response body into a Python dict
-data = response.json()
+    try:
+        response = requests.get(url, params=params, timeout=10)
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Network error fetching {city}: {e}")
+        continue
 
-print(data)
+    if response.status_code == 200:
+        data = response.json()
 
-city = data['name']
-temperature = data['main']['temp']
-humidity = data['main']['humidity']
-description = data['weather'][0]['description']
-wind_speed = data['wind']['speed']
+        city_name = data['name']
+        temperature = data['main']['temp']
+        humidity = data['main']['humidity']
+        description = data['weather'][0]['description']
+        wind_speed = data['wind']['speed']
 
-print(f"{city}: {temperature}°F, {description}, humidity {humidity}%, wind {wind_speed} mph")
-save_to_csv(city, temperature, humidity, description, wind_speed)
+        logging.info(f"{city_name}: {temperature}°F, {description}, humidity {humidity}%, wind {wind_speed} mph")
+
+        save_to_csv(city_name, temperature, humidity, description, wind_speed)
+    else:
+        logging.warning(f"Failed to get data for {city}: status code {response.status_code}")
